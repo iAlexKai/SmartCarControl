@@ -18,14 +18,15 @@ using namespace cv;
 
 #define RoadWidthPixel 30
 #define	VIDEO_PORT 0
-#define StraightValue 90  // the value of x, which will make the car drive straight
-#define TOTAL_RUN_TIME 1  // the time this car runs before he stops to detect moving cars
-#define DETECT_TIME 1200 // the total time for the car to detect moving cars
+#define StraightValue 106  // the value of x, which will make the car drive straight
+#define TOTAL_RUN_TIME 3  // the time this car runs before he stops to detect moving cars
+#define DETECT_TIME 100 // the total time for the car to detect moving cars
 #define kMin 0.17
-#define kMax 1.8
+#define kMax 5
 #define kForEmergency 1
 #define TurnDevideValue 10 // the devider to calculate turnValue, devisor is l1, which is 11/12 time frame width 
-#define MovingThreshold 500
+#define MovingThreshold 3000
+#define DELAY_FRAMES 3
 
 void myImagePreProcess(IplImage* pCutFrImg, int otsuT, int roadwidth);
 void probabilityOfLine(int x1, int y1, int x2, int y2, int imgWidth, double *lweight, double *rweight, int picHalfHeight);
@@ -36,7 +37,7 @@ void turnLeft();
 void turnRight();
 void goStraight();
 void stopCar();
-int check_moving_object();
+int check_moving_object(VideoCapture &capture);
 void set_pin_mode(string pin_BCM_number, string mode); 
 void write_pin(string pin_BCM_number, string val);
 
@@ -155,7 +156,7 @@ int main(int argc, char** argv)
 
 		cvSetImageROI(src, cvRect(cutWidth, cutHeight, src->width - cutWidth, src->height - cutHeight));
 		frameSize = cvGetSize(src);
-		cout << frameSize.width << "   " << frameSize.height << endl;
+		//cout << frameSize.width << "   " << frameSize.height << endl;
 
 		IplImage *grayImage = cvCreateImage(cvGetSize(src), IPL_DEPTH_8U, 1);
 		cvCvtColor(src, grayImage, CV_BGR2GRAY);
@@ -258,7 +259,7 @@ int main(int argc, char** argv)
 	//cvDestroyWindow("Hough");
 	
 	//cout << "Before stop" << endl;	
-	capture.release();
+	
 	//writer.release();
 	
 	stopCar();
@@ -268,7 +269,7 @@ int main(int argc, char** argv)
 	set_pin_mode("4", "out");	
 
 	while ( (((currentTime = clock()) - startTime) / CLOCKS_PER_SEC ) < DETECT_TIME ) {
-		int currentMovingValue = check_moving_object();	
+		int currentMovingValue = check_moving_object(capture);	
 		if (currentMovingValue > MovingThreshold) {
 			write_pin("4", "0");
 			cout << "Moving value is " << currentMovingValue << ". Something is coming fast!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;	
@@ -276,10 +277,11 @@ int main(int argc, char** argv)
 			write_pin("4", "1");
 			cout << "Moving value is " << currentMovingValue << ". Safe and sound.." << endl;		
 		}
-		usleep(500000);	
+		//usleep(50000);	
 	}
 	set_pin_mode("4", "in");
 	//system("pause");
+	capture.release();	
 	return 0;
 }
 
@@ -745,10 +747,10 @@ bool stateCheck(IplImage *src, IplImage *grayImage, double *kFinal, double *k1Fi
 
 	cvReleaseImage(&dst);
 	cvReleaseMemStorage(&storage);
-	  	cout << "kFinal and k1Final are " << *kFinal << " " << *k1Final << endl;
+/*	  	cout << "kFinal and k1Final are " << *kFinal << " " << *k1Final << endl;
 	  	printf("(0, bLeftMax) (-bLeftMax/kFinal, 0) is (0, %f) (%f, 0)\n\n", bLeftMax, -bLeftMax / *kFinal);
 	  	printf("(0, bRightMax) (-bRightMax/k1Final, 0) is (0, %f) (%f, 0)", bRightMax, -bRightMax / *k1Final);
-
+*/
 
 	if (!leftFound || !rightFound) { // 只找到一条时，再去判断斜率，决定是否要控制
 		cout << "Not found both at the same time\n\n";
@@ -819,7 +821,7 @@ bool stateCheck(IplImage *src, IplImage *grayImage, double *kFinal, double *k1Fi
 void turnLeft() {
 	if (currentX > StraightValue)
 	currentX = StraightValue;
-	if (currentX > 40) {
+	if (currentX > StraightValue - 50) {
 		currentX -= 30;
 		cout << "Turning left!! current X is" << currentX << endl;
 	}
@@ -835,7 +837,7 @@ void turnLeft() {
 void turnRight() {
 	if (currentX < StraightValue)
 		currentX = StraightValue;
-	if (currentX < 140) {
+	if (currentX < StraightValue + 50) {
 		currentX += 30;
 		cout << "Turning Right!! current X is" << currentX << endl;
 	}
@@ -866,16 +868,16 @@ void stopCar() {
 
 
 // Before using this function, we have to close the camera first
-int check_moving_object() { 
-	int activate_frames = 50; //相机启动延时
-    int delay_frames = 5;      //两帧之间的延迟 ms
+int check_moving_object(VideoCapture &capture) { 
+//	int activate_frames = 50; //相机启动延时
+
 
 
     int diffVal = 0; //最终白色像素个数
-    VideoCapture capture(0);
+//    VideoCapture capture(0);
     Mat frame1;
     Mat frame2;
-    //recordTime("begin");
+ /*   //recordTime("begin");
     if(!capture.isOpened())
     {
         cout<<"摄像头打开失败！"<<endl;
@@ -892,9 +894,12 @@ int check_moving_object() {
     for (int k = 0; k < delay_frames; k++) {
         capture >> frame2;
     }
-    capture.release();//关闭摄像头
-
-
+//    capture.release();//关闭摄像头
+*/
+	capture >> frame1;
+	for (int k = 0; k < DELAY_FRAMES; k++) {
+        capture >> frame2;
+    }
 
     string basepath = "/home/myk/workspace_szh/mid/";
     imwrite(basepath + "input1.jpg", frame1);//图片保存到本工程目录中
