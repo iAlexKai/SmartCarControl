@@ -10,7 +10,7 @@
 #include <string>
 #include <time.h>
 #include <unistd.h>
-
+#include <fstream> // write into the txt file for send msg to arduino
 using namespace std;
 using namespace cv;
 
@@ -19,8 +19,8 @@ using namespace cv;
 #define RoadWidthPixel 30
 #define	VIDEO_PORT 0
 #define StraightValue 106  // the value of x, which will make the car drive straight
-#define TOTAL_RUN_TIME 3  // the time this car runs before he stops to detect moving cars
-#define DETECT_TIME 100 // the total time for the car to detect moving cars
+#define TOTAL_RUN_TIME 0  // the time this car runs before he stops to detect moving cars
+#define DETECT_TIME 3 // the total time for the car to detect moving cars
 #define kMin 0.17
 #define kMax 5
 #define kForEmergency 1
@@ -85,7 +85,6 @@ ofstream out("/dev/ttyUSB0");
 //int hough()
 int main(int argc, char** argv)
 {
-
 	VideoCapture capture(VIDEO_PORT);
 	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\roadTest.wmv"); // caputure from video 	
 	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\TurnLeft.wmv"); // caputure from video 	
@@ -267,21 +266,34 @@ int main(int argc, char** argv)
  	startTime = clock();
 	currentTime = clock();
 	set_pin_mode("4", "out");	
-
+    string msg2send;
 	while ( (((currentTime = clock()) - startTime) / CLOCKS_PER_SEC ) < DETECT_TIME ) {
+		ofstream in;			
+ 		//in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::app);  // ios::app appends the msg to the end of the existing file			
+		in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::trunc);  // ios::app trunc clear the file first and input content
 		int currentMovingValue = check_moving_object(capture);	
 		if (currentMovingValue > MovingThreshold) {
 			write_pin("4", "0");
 			cout << "Moving value is " << currentMovingValue << ". Something is coming fast!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;	
+			msg2send = to_string(currentMovingValue) + "  danger\n";						
+			in << msg2send;
 		} else {
 			write_pin("4", "1");
 			cout << "Moving value is " << currentMovingValue << ". Safe and sound.." << endl;		
+			msg2send = to_string(currentMovingValue) + "  safe\n";			
+			in << msg2send;
 		}
-		//usleep(50000);	
+		in.close();
+		usleep(500000); // half a second	
 	}
+	ofstream in;						
+	in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::trunc);  // clear file
+	in.close();
+	
 	set_pin_mode("4", "in");
 	//system("pause");
 	capture.release();	
+
 	return 0;
 }
 
@@ -861,7 +873,7 @@ void stopCar() {
 	string output = "$AP0:127X127Y127A127B!";
 	for (int i = 0; i < 3; i++) {
 		out << output << endl;
-		usleep(10000);	
+		usleep(30000);	
 	}
 	cout << "The car has stopped and detect moving things" << endl;
 }
