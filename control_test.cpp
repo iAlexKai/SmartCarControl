@@ -6,7 +6,7 @@
 using namespace std;
 using namespace cv;
 
-ofstream out("/dev/ttyUSB0");
+ofstream out("/dev/ttyUSB1");
 
 int main(int argc, char** argv)
 {

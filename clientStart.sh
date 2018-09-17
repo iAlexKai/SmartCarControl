@@ -1,3 +1,4 @@
 #!/bin/sh
-cd /home/myk/workspace_szh
-sudo ./videoRobot_run
+
+nohup sudo /home/myk/workspace_szh/videoRobot_run 01 > ./run1.log 2>&1 &
+nohup tail -f /home/myk/RF24-master/examples_linux/input.txt | /home/myk/RF24-master/examples_linux/gettingstarted > run2.log 2>&1 &

@@ -17,10 +17,11 @@ using namespace cv;
 
 
 #define RoadWidthPixel 30
-#define	VIDEO_PORT 0
+#define	VIDEO_PORT_ROAD 6
+#define	VIDEO_PORT_MOVEDETECT 7
 #define StraightValue 106  // the value of x, which will make the car drive straight
-#define TOTAL_RUN_TIME 0  // the time this car runs before he stops to detect moving cars
-#define DETECT_TIME 3 // the total time for the car to detect moving cars
+#define TOTAL_RUN_TIME 20  // the time this car runs before he stops to detect moving cars
+#define DETECT_TIME 100 // the total time for the car to detect moving cars
 #define kMin 0.17
 #define kMax 5
 #define kForEmergency 1
@@ -80,12 +81,15 @@ enum directionState carS = sTraight;
 bool turnAround = false;
 
 int currentX = 90; // ×÷ÎªŽ®¿Ú¿ØÖÆÖžÁîX×ø±êµÄ³õÊŒÖµ
-ofstream out("/dev/ttyUSB0");
+ofstream out("/dev/ttyUSB1");
 
 //int hough()
 int main(int argc, char** argv)
 {
-	VideoCapture capture(VIDEO_PORT);
+	//VideoCapture capture_road(VIDEO_PORT_ROAD);
+        VideoCapture capture_road(argv[1][0]-'0');
+	//VideoCapture capture_detect(VIDEO_PORT_MOVEDETECT);
+        //VideoCapture capture_detect(argv[1][1]-'0');
 	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\roadTest.wmv"); // caputure from video 	
 	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\TurnLeft.wmv"); // caputure from video 	
 	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\TurnRight.wmv"); // caputure from video 	
@@ -106,10 +110,12 @@ int main(int argc, char** argv)
 	//writer.open(outputFile, CV_FOURCC('D', 'I', 'V', 'X'), 30, S, true);
 	//writer = VideoWriter(outputFile, CV_FOURCC('F', 'L', 'V', '1'), 30, Size(640, 480));
 	//VideoCapture capture(VIDEO_PORT);
-	if (!capture.isOpened()) {
-		cout << "Capture opens fails" << endl;
+	if (!capture_road.isOpened()) {
+		cout << "Capture road opens fails" << endl;
 		return -1;
 	}
+
+	
 	//else if (!writer.isOpened()) {
 	//	cout << "Writer opens fails" << endl;
 		//	return -1;
@@ -140,7 +146,7 @@ int main(int argc, char** argv)
 	static clock_t currentTime = clock();
 	double runTime = (currentTime - startTime) / CLOCKS_PER_SEC;
 	while (runTime < TOTAL_RUN_TIME) {
-		capture >> srcFrame;
+		capture_road >> srcFrame;
 		if (srcFrame.empty()) {
 			cout << "Video finishes!" << endl;
 			break;
@@ -260,8 +266,17 @@ int main(int argc, char** argv)
 	//cout << "Before stop" << endl;	
 	
 	//writer.release();
-	
-	stopCar();
+	capture_road.release();
+
+	usleep(10000);	
+
+    VideoCapture capture_detect(argv[1][1]-'0');   
+	if (!capture_detect.isOpened()) {
+		cout << "Capture detect opens fails" << endl;	
+		return -1;
+	}
+ 
+    stopCar();
 
  	startTime = clock();
 	currentTime = clock();
@@ -271,16 +286,16 @@ int main(int argc, char** argv)
 		ofstream in;			
  		//in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::app);  // ios::app appends the msg to the end of the existing file			
 		in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::trunc);  // ios::app trunc clear the file first and input content
-		int currentMovingValue = check_moving_object(capture);	
+		int currentMovingValue = check_moving_object(capture_detect);	
 		if (currentMovingValue > MovingThreshold) {
 			write_pin("4", "0");
-			cout << "Moving value is " << currentMovingValue << ". Something is coming fast!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;	
-			msg2send = to_string(currentMovingValue) + "  danger\n";						
+			cout << "Moving value is " << currentMovingValue << ". Something is coming fast!!!!!!!" << endl;	
+			msg2send = to_string(currentMovingValue) + "  danger!\n";						
 			in << msg2send;
 		} else {
 			write_pin("4", "1");
-			cout << "Moving value is " << currentMovingValue << ". Safe and sound.." << endl;		
-			msg2send = to_string(currentMovingValue) + "  safe\n";			
+			cout << "Moving value is " << currentMovingValue << ". Safe and sound...." << endl;		
+			msg2send = to_string(currentMovingValue) + "  safe!\n";			
 			in << msg2send;
 		}
 		in.close();
@@ -292,7 +307,8 @@ int main(int argc, char** argv)
 	
 	set_pin_mode("4", "in");
 	//system("pause");
-	capture.release();	
+	//capture_road.release();		
+	capture_detect.release();	
 
 	return 0;
 }
