@@ -1,6 +1,9 @@
 //#include <highgui.h>  
 //#include <imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/core.hpp>
 #include <highgui.hpp>
 #include <core.hpp>
 //#include <cv.h>  
@@ -10,6 +13,7 @@
 #include <string>
 #include <time.h>
 #include <unistd.h>
+#include <numeric>
 #include <fstream> // write into the txt file for send msg to arduino
 using namespace std;
 using namespace cv;
@@ -17,16 +21,16 @@ using namespace cv;
 
 
 #define RoadWidthPixel 30
-#define	VIDEO_PORT_ROAD 6
-#define	VIDEO_PORT_MOVEDETECT 7
-#define StraightValue 106  // the value of x, which will make the car drive straight
-#define TOTAL_RUN_TIME 20  // the time this car runs before he stops to detect moving cars
-#define DETECT_TIME 100 // the total time for the car to detect moving cars
+//#define	VIDEO_PORT_ROAD 6
+//#define	VIDEO_PORT_MOVEDETECT 7
+#define StraightValue 95  // the value of x, which will make the car drive straight
+#define TOTAL_RUN_TIME 1  // the time this car runs before he stops to detect moving cars
+#define DETECT_TIME 5 // the total time for the car to detect moving cars
 #define kMin 0.17
 #define kMax 5
 #define kForEmergency 1
 #define TurnDevideValue 10 // the devider to calculate turnValue, devisor is l1, which is 11/12 time frame width 
-#define MovingThreshold 3000
+#define MovingThreshold 10000000
 #define DELAY_FRAMES 3
 
 void myImagePreProcess(IplImage* pCutFrImg, int otsuT, int roadwidth);
@@ -81,35 +85,14 @@ enum directionState carS = sTraight;
 bool turnAround = false;
 
 int currentX = 90; // ×÷ÎªŽ®¿Ú¿ØÖÆÖžÁîX×ø±êµÄ³õÊŒÖµ
-ofstream out("/dev/ttyUSB1");
+ofstream out("/dev/device0");
 
 //int hough()
-int main(int argc, char** argv)
+//int main(int argc, char** argv)
+int main()
 {
 	//VideoCapture capture_road(VIDEO_PORT_ROAD);
-        VideoCapture capture_road(argv[1][0]-'0');
-	//VideoCapture capture_detect(VIDEO_PORT_MOVEDETECT);
-        //VideoCapture capture_detect(argv[1][1]-'0');
-	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\roadTest.wmv"); // caputure from video 	
-	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\TurnLeft.wmv"); // caputure from video 	
-	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\TurnRight.wmv"); // caputure from video 	
-																				 //VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\roadTest.mp4"); // caputure from video 	
-	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\roadTest2.mp4"); // caputure from video 	
-	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\Video.wmv"); // caputure from video 	
-	//VideoCapture capture("C:\\Users\\mayuankai\\Desktop\\cvTest\\Video2.mp4");	
-
-	//VideoWriter writer;
-	//string outputFile = "C:\\Users\\mayuankai\\Desktop\\cvTest\\outputVideos\\ouputVideo.avi";
-	//获得帧的宽高
-	//int w = static_cast<int>(capture.get(CV_CAP_PROP_FRAME_WIDTH));
-	//int h = static_cast<int>(capture.get(CV_CAP_PROP_FRAME_HEIGHT));
-	//Size S(w, h);
-	//frequence get	
-	//double fps = capture.get(CV_CAP_PROP_FPS);
-	//open the video file and prepare to write in 
-	//writer.open(outputFile, CV_FOURCC('D', 'I', 'V', 'X'), 30, S, true);
-	//writer = VideoWriter(outputFile, CV_FOURCC('F', 'L', 'V', '1'), 30, Size(640, 480));
-	//VideoCapture capture(VIDEO_PORT);
+    VideoCapture capture_road(6);
 	if (!capture_road.isOpened()) {
 		cout << "Capture road opens fails" << endl;
 		return -1;
@@ -270,7 +253,8 @@ int main(int argc, char** argv)
 
 	usleep(10000);	
 
-    VideoCapture capture_detect(argv[1][1]-'0');   
+//    VideoCapture capture_detect(argv[1][1]-'0');   
+	VideoCapture capture_detect(7);   
 	if (!capture_detect.isOpened()) {
 		cout << "Capture detect opens fails" << endl;	
 		return -1;
@@ -299,9 +283,13 @@ int main(int argc, char** argv)
 			in << msg2send;
 		}
 		in.close();
-		usleep(500000); // half a second	
+		sleep(1); 	
 	}
 	ofstream in;						
+	in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::trunc);  // clear file
+	in << "Detecting finished" << endl;
+	in.close();
+
 	in.open("/home/myk/RF24-master/examples_linux/input.txt", ios::trunc);  // clear file
 	in.close();
 	
@@ -905,6 +893,13 @@ int check_moving_object(VideoCapture &capture) {
 //    VideoCapture capture(0);
     Mat frame1;
     Mat frame2;
+    Mat gray1;
+    Mat gray2;
+	Mat blur1;
+    Mat blur2;
+	Mat diff;
+    Mat absdiff;
+	Mat segmentation;
  /*   //recordTime("begin");
     if(!capture.isOpened())
     {
@@ -928,7 +923,26 @@ int check_moving_object(VideoCapture &capture) {
 	for (int k = 0; k < DELAY_FRAMES; k++) {
         capture >> frame2;
     }
+    
+    
+	cvtColor(frame1,gray1,COLOR_BGR2GRAY);
+	cvtColor(frame2,gray2,COLOR_BGR2GRAY);
+	blur(gray1,blur1,Size(3,3));
+	blur(gray2,blur2,Size(3,3));
+    subtract(blur1,blur2,diff,Mat());
+	//absdiff = abs(diff);
+	//absdiff.convertTo(absdiff,CV_8UC1,1,0);
+	//absdiff(blur1,blur2,diff);
+	threshold(diff,diff,30,255,THRESH_BINARY);
+	erode(diff,diff,Mat());
+	dilate(diff,diff,Mat());
+	unsigned char *array = new unsigned char[diff.rows*diff.cols];
+	array = diff.data;
 
+	diffVal= accumulate(array,array + diff.rows*diff.cols,0);
+	return diffVal;
+	
+	/*
     string basepath = "/home/myk/workspace_szh/mid/";
     imwrite(basepath + "input1.jpg", frame1);//图片保存到本工程目录中
     imwrite(basepath + "input2.jpg", frame2);//图片保存到本工程目录中
@@ -945,6 +959,7 @@ int check_moving_object(VideoCapture &capture) {
     }
 
     return diffVal;
+	*/
    // popen("python /home/myk/workspace_szh/py_src/checkCar.py", "r")
 }
 

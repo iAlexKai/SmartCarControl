@@ -5,13 +5,19 @@ if __name__ == "__main__":
     basepath = "/home/myk/workspace_szh/mid/"
     bin_thresold = 40
 
-    img1 = "{0}input1.jpg".format(basepath)
-    img2 = "{0}input2.jpg".format(basepath)
+    #img1 = "{0}input1.jpg".format(basepath)
+    img1 = "{0}1.jpg".format(basepath)
+    #img2 = "{0}input2.jpg".format(basepath)
+    img2 = "{0}2.jpg".format(basepath)
     to1 = cv2.imread(img1)
     gray1 = cv2.cvtColor(to1, cv2.COLOR_BGR2GRAY)
+    #gray1 = cv2.imread(img1, 0)    
+    print(type(gray1))
     gray1 = cv2.blur(gray1, (3, 3))
+    #print(type(gray1))
     to2 = cv2.imread(img2)
     gray2 = cv2.cvtColor(to2, cv2.COLOR_BGR2GRAY)
+    #gray2 = cv2.imread(img2, 0)    
     gray2 = cv2.blur(gray2, (3, 3))
     cv2.imwrite(basepath+"gray1.jpg", gray1)
     cv2.imwrite(basepath+"gray2.jpg", gray2)
